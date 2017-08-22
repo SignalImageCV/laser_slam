@@ -296,6 +296,7 @@ Pose LaserTrack::getCurrentPose() const {
   Pose current_pose;
   if (!trajectory_.isEmpty()) {
     current_pose.time_ns = getMaxTime();
+    current_pose.key = getPoseKey(current_pose.time_ns);
     current_pose.T_w = trajectory_.evaluate(current_pose.time_ns);
   }
   return current_pose;

@@ -24,6 +24,9 @@ class IncrementalEstimator {
 
   ~IncrementalEstimator() {};
 
+  /// \brief Process a new localization
+  void processLocalization(const LocalizationCorr& localization_corr);
+
   /// \brief Process a new loop closure.
   void processLoopClosure(const RelativePose& loop_closure);
 
@@ -75,16 +78,20 @@ class IncrementalEstimator {
   PointMatcher::ICP icp_;
 
   gtsam::noiseModel::Base::shared_ptr loop_closure_noise_model_;
+  gtsam::noiseModel::Base::shared_ptr localization_noise_model_;
   gtsam::noiseModel::Base::shared_ptr first_association_noise_model_;
 
 
   std::unordered_map<unsigned int, size_t> factor_indices_to_remove_;
+  std::unordered_map<unsigned int, size_t> prior_indices_to_remove_;
   std::vector<unsigned int> worker_ids_with_removed_prior_;
 
   std::unordered_map<unsigned int, unsigned int> if_first_then_remove_second_;
 
   std::map<laser_slam::Time, double> estimation_times_;
 
+  // If doing the first localization
+  bool first_localization_;
 
   // Parameters.
   EstimatorParams params_;

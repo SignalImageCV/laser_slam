@@ -25,7 +25,9 @@ struct LaserTrackParams {
 struct EstimatorParams {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Eigen::Matrix<double,6,1> loop_closure_noise_model;
+  Eigen::Matrix<double,6,1> localization_noise_model;
   bool add_m_estimator_on_loop_closures;
+  bool add_m_estimator_on_localization;
 
   bool do_icp_step_on_loop_closures;
   int loop_closures_sub_maps_radius;

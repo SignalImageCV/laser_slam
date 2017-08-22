@@ -37,6 +37,17 @@ IncrementalEstimator::IncrementalEstimator(const EstimatorParams& parameters,
         gtsam::noiseModel::Diagonal::Sigmas(params_.loop_closure_noise_model);
   }
 
+  // Create the localization noise model.
+  if (params_.add_m_estimator_on_localization) {
+    LOG(INFO) << "Creating localization noise model with cauchy.";
+    localization_noise_model_  = gtsam::noiseModel::Robust::Create(
+        gtsam::noiseModel::mEstimator::Cauchy::Create(1),
+        gtsam::noiseModel::Diagonal::Sigmas(params_.localization_noise_model));
+  } else {
+    localization_noise_model_ =
+        gtsam::noiseModel::Diagonal::Sigmas(params_.localization_noise_model);
+  }
+
   Eigen::Matrix<double,6,1> first_association_noise_model;
   first_association_noise_model[0] = 0.05;
   first_association_noise_model[1] = 0.05;
@@ -58,6 +69,53 @@ IncrementalEstimator::IncrementalEstimator(const EstimatorParams& parameters,
     LOG(WARNING) << "Could not open ICP configuration file. Using default configuration.";
     icp_.setDefault();
   }
+}
+
+void IncrementalEstimator::processLocalization(const LocalizationCorr& localization_corr)
+{
+  std::lock_guard<std::recursive_mutex> lock(full_class_mutex_);
+  LOG(INFO) << "Creating localization factor.";
+
+  int track_id = localization_corr.track_id;
+
+  // Getting the estimated pose at the time the localization was detected
+  Pose localized_pose = *laser_tracks_[track_id]->findPose(localization_corr.time_ns);
+  
+  Pose corrected_pose = localized_pose;
+  // Computing the corrected pose
+  corrected_pose.T_w = localized_pose.T_w * localization_corr.T_orig_corr;
+
+  NonlinearFactorGraph new_factors;
+  Values new_values;
+  // Find and update the factor indices to remove.
+  std::vector<size_t> factor_indices_to_remove;
+
+  // For first localization, remove the prior factor and create a new prior at 
+  // the corrected pose
+  if (first_localization_)
+  {
+    std::cout << "First localization!" << std::endl;
+    // Remove the prior (this is the first one which will be set at the origin by default which is almost certainly wrong)
+    factor_indices_to_remove.push_back(prior_indices_to_remove_.at(track_id));
+    prior_indices_to_remove_.erase(track_id);
+    
+    first_localization_ = false;
+  }
+
+  // Make the correction prior factor
+  new_factors.push_back(laser_tracks_[track_id]->makeMeasurementFactor(corrected_pose, localization_noise_model_));
+
+  isam2_.update(new_factors, new_values, factor_indices_to_remove);
+
+  isam2_.update();
+  isam2_.update();
+  Values result(isam2_.calculateEstimate());
+
+  LOG(INFO) << "Updating the trajectories after localization correction.";
+  for (auto& track: laser_tracks_) {
+    track->updateFromGTSAMValues(result);
+  }
+  LOG(INFO) << "Updating the trajectories after localization correction done.";
 }
 
 void IncrementalEstimator::processLoopClosure(const RelativePose& loop_closure) {
@@ -247,7 +305,16 @@ gtsam::Values IncrementalEstimator::registerPrior(const gtsam::NonlinearFactorGr
   if (worker_id > 0u) {
     factor_indices_to_remove_.insert(
         std::make_pair(worker_id, update_result.newFactorsIndices.at(0u)));
+  } 
+
+  // Storing this here (probably will want to do a more elegant solution)
+  // as this prior needs to be removed for localization
+  else
+  {
+    prior_indices_to_remove_.insert(
+        std::make_pair(worker_id, update_result.newFactorsIndices.at(0u)));
   }
+
   // TODO Investigate why these two subsequent update calls are needed.
   isam2_.update();
   isam2_.update();

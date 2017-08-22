@@ -143,6 +143,17 @@ class LaserTrack {
     trajectory_.saveCurveTimesAndValues(filename);
   }
 
+  // Find a pose at a given time.
+  Pose* findPose(const Time& timestamp_ns);
+
+  // Find a pose at a given time.
+  Pose findPose(const Time& timestamp_ns) const;
+  
+  // Make a pose measurement factor.
+  gtsam::ExpressionFactor<SE3>
+  makeMeasurementFactor(const Pose& pose_measurement,
+                        gtsam::noiseModel::Base::shared_ptr noise_model) const;
+
  private:
   typedef curves::DiscreteSE3Curve CurveType;
 
@@ -151,11 +162,6 @@ class LaserTrack {
   makeRelativeMeasurementFactor(const RelativePose& relative_pose_measurement,
                                 gtsam::noiseModel::Base::shared_ptr noise_model,
                                 const bool fix_first_node = false) const;
-
-  // Make a pose measurement factor.
-  gtsam::ExpressionFactor<SE3>
-  makeMeasurementFactor(const Pose& pose_measurement,
-                        gtsam::noiseModel::Base::shared_ptr noise_model) const;
 
   // Compute rigid ICP transformations according to the selected strategy.
   void computeICPTransformations();
@@ -172,12 +178,6 @@ class LaserTrack {
 
   // Get a pose key.
   Key getPoseKey(const Time& timestamp_ns) const { return findPose(timestamp_ns).key; };
-
-  // Find a pose at a given time.
-  Pose* findPose(const Time& timestamp_ns);
-
-  // Find a pose at a given time.
-  Pose findPose(const Time& timestamp_ns) const;
 
   // Wrapper to extend the trajectory cleanly.
   // TODO(Renaud): Move this to curves.

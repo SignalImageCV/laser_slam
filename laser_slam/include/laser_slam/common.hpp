@@ -93,6 +93,16 @@ struct Pose {
   Key key;
 };
 
+/// \brief LocalizationCorr type including relative transformation and interval time stamps.
+struct LocalizationCorr
+{
+  /// \brief Relative transform from the original estimated pose to the corrected pose
+  SE3 T_orig_corr;
+  /// \brief Time stamp at frame where the localization is detected
+  curves::Time time_ns;
+  unsigned int track_id;
+};
+
 /// \brief RelativePose type including relative transformation and interval time stamps.
 struct RelativePose {
   /// \brief Relative transform.
