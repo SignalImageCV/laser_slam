@@ -40,10 +40,15 @@ IncrementalEstimator::IncrementalEstimator(const EstimatorParams& parameters,
   // Create the localization noise model.
   if (params_.add_m_estimator_on_localization) {
     LOG(INFO) << "Creating localization noise model with cauchy.";
+    first_localization_noise_model_  = gtsam::noiseModel::Robust::Create(
+        gtsam::noiseModel::mEstimator::Cauchy::Create(1),
+        gtsam::noiseModel::Diagonal::Sigmas(params_.first_localization_noise_model));
     localization_noise_model_  = gtsam::noiseModel::Robust::Create(
         gtsam::noiseModel::mEstimator::Cauchy::Create(1),
         gtsam::noiseModel::Diagonal::Sigmas(params_.localization_noise_model));
   } else {
+    first_localization_noise_model_ =
+        gtsam::noiseModel::Diagonal::Sigmas(params_.first_localization_noise_model);
     localization_noise_model_ =
         gtsam::noiseModel::Diagonal::Sigmas(params_.localization_noise_model);
   }
@@ -78,6 +83,8 @@ void IncrementalEstimator::processLocalization(const LocalizationCorr& localizat
 
   int track_id = localization_corr.track_id;
 
+  CHECK_GT(laser_tracks_.size(), track_id);
+
   // Getting the estimated pose at the time the localization was detected
   Pose localized_pose = *laser_tracks_[track_id]->findPose(localization_corr.time_ns);
   
@@ -95,15 +102,18 @@ void IncrementalEstimator::processLocalization(const LocalizationCorr& localizat
   if (first_localization_)
   {
     std::cout << "First localization!" << std::endl;
-    // Remove the prior (this is the first one which will be set at the origin by default which is almost certainly wrong)
-    factor_indices_to_remove.push_back(prior_indices_to_remove_.at(track_id));
-    prior_indices_to_remove_.erase(track_id);
+
+    // Make the correction prior factor
+    new_factors.push_back(laser_tracks_[track_id]->makeMeasurementFactor(corrected_pose, first_localization_noise_model_));
     
     first_localization_ = false;
-  }
+  } 
 
-  // Make the correction prior factor
-  new_factors.push_back(laser_tracks_[track_id]->makeMeasurementFactor(corrected_pose, localization_noise_model_));
+  else
+  {
+    // Make the correction prior factor
+    new_factors.push_back(laser_tracks_[track_id]->makeMeasurementFactor(corrected_pose, localization_noise_model_));
+  }
 
   isam2_.update(new_factors, new_values, factor_indices_to_remove);
 

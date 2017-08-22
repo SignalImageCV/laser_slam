@@ -78,6 +78,7 @@ class IncrementalEstimator {
   PointMatcher::ICP icp_;
 
   gtsam::noiseModel::Base::shared_ptr loop_closure_noise_model_;
+  gtsam::noiseModel::Base::shared_ptr first_localization_noise_model_;
   gtsam::noiseModel::Base::shared_ptr localization_noise_model_;
   gtsam::noiseModel::Base::shared_ptr first_association_noise_model_;
 

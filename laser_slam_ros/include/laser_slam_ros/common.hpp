@@ -136,6 +136,22 @@ static laser_slam::EstimatorParams getOnlineEstimatorParams(const ros::NodeHandl
   }
   nh.getParam(ns + "/add_m_estimator_on_loop_closures", params.add_m_estimator_on_loop_closures);
 
+  std::vector<float> localization_noise_model;
+  nh.getParam(ns + "/localization_noise_model", localization_noise_model);
+  CHECK_EQ(localization_noise_model.size(), kNoiseModelDimension);
+  for (size_t i = 0u; i < 6u; ++i) {
+    params.localization_noise_model[i] = localization_noise_model.at(i);
+  }
+
+  std::vector<float> first_localization_noise_model;
+  nh.getParam(ns + "/first_localization_noise_model", first_localization_noise_model);
+  CHECK_EQ(first_localization_noise_model.size(), kNoiseModelDimension);
+  for (size_t i = 0u; i < 6u; ++i) {
+    params.first_localization_noise_model[i] = first_localization_noise_model.at(i);
+  }
+
+  nh.getParam(ns + "/add_m_estimator_on_localization", params.add_m_estimator_on_localization);
+
   nh.getParam(ns + "/do_icp_step_on_loop_closures", params.do_icp_step_on_loop_closures);
   nh.getParam(ns + "/loop_closures_sub_maps_radius", params.loop_closures_sub_maps_radius);
 
