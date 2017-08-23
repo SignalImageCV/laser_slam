@@ -103,19 +103,29 @@ void IncrementalEstimator::processLocalization(const LocalizationCorr& localizat
   {
     std::cout << "First localization!" << std::endl;
 
+    factor_indices_to_remove.push_back(prior_indices_to_remove_.at(track_id));
+    prior_indices_to_remove_.erase(track_id);
+
     // Make the correction prior factor
     new_factors.push_back(laser_tracks_[track_id]->makeMeasurementFactor(corrected_pose, first_localization_noise_model_));
-    
+
     first_localization_ = false;
   } 
 
   else
   {
+    factor_indices_to_remove.push_back(prior_indices_to_remove_.at(track_id));
+    prior_indices_to_remove_.erase(track_id);
+
     // Make the correction prior factor
     new_factors.push_back(laser_tracks_[track_id]->makeMeasurementFactor(corrected_pose, localization_noise_model_));
   }
 
-  isam2_.update(new_factors, new_values, factor_indices_to_remove);
+  ISAM2Result update_result = isam2_.update(new_factors, new_values, factor_indices_to_remove);
+
+  // Add the prior to be removed
+  prior_indices_to_remove_.insert(
+        std::make_pair(track_id, update_result.newFactorsIndices.at(0u)));
 
   isam2_.update();
   isam2_.update();
