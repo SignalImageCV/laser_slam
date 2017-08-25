@@ -1,6 +1,12 @@
 #ifndef LASER_SLAM_INCREMENTAL_ESTIMATOR_HPP_
 #define LASER_SLAM_INCREMENTAL_ESTIMATOR_HPP_
 
+#include <ros/ros.h>
+#include <tf/transform_broadcaster.h>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
+#include "tf_conversions/tf_eigen.h"
+
 #include <mutex>
 #include <unordered_map>
 
@@ -19,7 +25,7 @@ class IncrementalEstimator {
  public:
   IncrementalEstimator() {};
   /// \brief Constructor.
-  explicit IncrementalEstimator(const EstimatorParams& parameters,
+  explicit IncrementalEstimator(ros::NodeHandle& nh, const EstimatorParams& parameters,
                                 unsigned int n_laser_slam_workers = 1u);
 
   ~IncrementalEstimator() {};
@@ -61,6 +67,10 @@ class IncrementalEstimator {
   }
 
  private:
+  ros::NodeHandle nh_;
+
+  tf::TransformBroadcaster tf_broadcaster_;
+
   unsigned int n_laser_slam_workers_;
 
   // TODO replace by standard mutex?

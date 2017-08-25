@@ -9,10 +9,10 @@ using namespace gtsam;
 
 namespace laser_slam {
 
-IncrementalEstimator::IncrementalEstimator(const EstimatorParams& parameters,
+IncrementalEstimator::IncrementalEstimator(ros::NodeHandle& nh, const EstimatorParams& parameters,
                                            unsigned int n_laser_slam_workers) : params_(
                                                parameters),
-                                               n_laser_slam_workers_(n_laser_slam_workers) {
+                                               n_laser_slam_workers_(n_laser_slam_workers), nh_(nh) {
   // Create the iSAM2 object.
   ISAM2Params isam2_params;
   isam2_params.setRelinearizeSkip(1);
@@ -87,10 +87,50 @@ void IncrementalEstimator::processLocalization(const LocalizationCorr& localizat
 
   // Getting the estimated pose at the time the localization was detected
   Pose localized_pose = *laser_tracks_[track_id]->findPose(localization_corr.time_ns);
+
+  // Publishing tf of the original est pose
+  tf::Transform tf_est_pose;
+  Eigen::Matrix4d est_pose = localized_pose.T_w.getTransformationMatrix();
+  Eigen::Vector3d trans = est_pose.topRightCorner(3,1);
+  tf_est_pose.setOrigin(tf::Vector3(trans(0), trans(1), trans(2)));
+
+  Eigen::Matrix3d rot = est_pose.topLeftCorner(3,3);
+  Eigen::Quaterniond quat(rot);
+  tf::Quaternion quat_tf;
+  tf::quaternionEigenToTF(quat, quat_tf);
+  tf_est_pose.setRotation(quat_tf);
+
+  tf_broadcaster_.sendTransform(tf::StampedTransform(
+      tf_est_pose, ros::Time::now(), "world", "orig_est_pose"));
   
   Pose corrected_pose = localized_pose;
   // Computing the corrected pose
-  corrected_pose.T_w = localized_pose.T_w * localization_corr.T_orig_corr;
+  // corrected_pose.T_w = localized_pose.T_w * localization_corr.T_orig_corr;
+  // This one should be correct but isn't for some reason
+  // corrected_pose.T_w = localized_pose.T_w * localization_corr.T_orig_corr.inverse();
+  // This one seems to be the only one that works when going from a kitti2bag with a kitti_to_rosbag generated map - so probably the only one that works but it doesn't make sense to me why
+  corrected_pose.T_w = localization_corr.T_orig_corr * localized_pose.T_w;
+  // corrected_pose.T_w = localization_corr.T_orig_corr.inverse() * localized_pose.T_w;
+
+  // Publish the corrected pose est
+  tf::Transform tf_corr_pose;
+  Eigen::Matrix4d corr_pose = corrected_pose.T_w.getTransformationMatrix();
+  Eigen::Vector3d trans_corr = corr_pose.topRightCorner(3,1);
+  tf_corr_pose.setOrigin(tf::Vector3(trans_corr(0), trans_corr(1), trans_corr(2)));
+
+  ROS_FATAL("ORIG POSE");
+  std::cout << est_pose << std::endl;
+
+  ROS_FATAL("CORRECTED POSE");
+  std::cout << corr_pose << std::endl;
+
+  Eigen::Matrix3d rot_corr = corr_pose.topLeftCorner(3,3);
+  Eigen::Quaterniond quat_corr(rot_corr);
+  tf::Quaternion quat_corr_tf;
+  tf::quaternionEigenToTF(quat_corr, quat_corr_tf);
+  tf_corr_pose.setRotation(quat_corr_tf);
+  tf_broadcaster_.sendTransform(tf::StampedTransform(
+      tf_corr_pose, ros::Time::now(), "world", "tf_corr_pose"));
 
   NonlinearFactorGraph new_factors;
   Values new_values;
