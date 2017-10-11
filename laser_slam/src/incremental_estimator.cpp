@@ -105,12 +105,7 @@ void IncrementalEstimator::processLocalization(const LocalizationCorr& localizat
   
   Pose corrected_pose = localized_pose;
   // Computing the corrected pose
-  // corrected_pose.T_w = localized_pose.T_w * localization_corr.T_orig_corr;
-  // This one should be correct but isn't for some reason
-  // corrected_pose.T_w = localized_pose.T_w * localization_corr.T_orig_corr.inverse();
-  // This one seems to be the only one that works when going from a kitti2bag with a kitti_to_rosbag generated map - so probably the only one that works but it doesn't make sense to me why
   corrected_pose.T_w = localization_corr.T_orig_corr * localized_pose.T_w;
-  // corrected_pose.T_w = localization_corr.T_orig_corr.inverse() * localized_pose.T_w;
 
   // Publish the corrected pose est
   tf::Transform tf_corr_pose;
